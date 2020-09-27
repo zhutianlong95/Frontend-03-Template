@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<style>
+  #container {
+    width: 701px;
+    line-height: 0;
+  }
+  .cell {
+    display: inline-block;
+    line-height: 7px;
+    height: 6px;
+    width: 6px;
+    background-color: #eee;
+    border-bottom: 1px solid white;
+    border-right: 1px solid white;
+    vertical-align: middle;
+  }
+</style>
+<body>
+  <div id="container"></div>
+  <button onclick="localStorage['map'] = JSON.stringify(map)">save</button>
+</body>
+<script>
+  // 启发式寻路，数据结构
+  class Sorted {
+    constructor(data, compare) {
+      this.data = data.slice()
+      this.length = data.length
+      this.compare = compare || ((a, b) => a - b )
+    }
+
+    // 从数据结构中获取元素，每次都是最小的那一个
+    take() {
+      if(!this.data.length) {
+        return 
+      }
+      let min = this.data[0]
+      let minIndex = 0
+
+      for(let i = 1; i < this.data.length; i++) {
+        if(this.compare(this.data[i], min) < 0) {
+          min = this.data[i]
+          minIndex = i
+        }
+      }
+
+      this.data[minIndex] = this.data[this.data.length - 1]
+      this.data.pop()
+      return min
+    }
+
+    give(v) {
+      this.data.push(v)
+    }
+  }
+  const map = localStorage['map'] ? JSON.parse(localStorage['map']) : Array(10000).fill(0)
+  const container = document.getElementById('container')
+
+  for(let y = 0; y < 100; y++) {
+    for(let x = 0; x < 100; x++) {
+      // 创建单元格
+      const cell = document.createElement('div')
+      cell.classList.add('cell')
+      
+      // 1表示墙
+      if(map[100 * y + x] === 1) cell.style.backgroundColor = 'black'
+      
+      cell.addEventListener('mousemove', () => {
+        if(mousedown) {
+          if(clear) {
+            cell.style.backgroundColor = ''
+            map[100 * y + x] = 0
+          } else {
+            cell.style.backgroundColor = 'black'
+            map[100 * y + x] = 1
+          }
+        }
+      })
+      container.appendChild(cell)
+    }
+  }
+
+  let mousedown = false
+  let clear = false
+  document.addEventListener('mousedown', (e) => {
+    mousedown = true
+    clear = (e.which === 3)
+  })
+  document.addEventListener('mouseup', () => {
+    mousedown = false
+  })
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+  })
+
+  function sleep(t) {
+    return new Promise(resolve => {
+      setTimeout(resolve, t)
+    })
+  }
+  /**
+   * 判断是否能走通，map: 地图数据， start:起点坐标, end:终点坐标 
+  */
+  async function findPath(map, start, end) {
+    let table = Object.create(map)
+    // 创建队列数据结构
+    // let queue = [start]
+    let queue = new Sorted([start], (a, b) => distance(a) - distance(b))
+
+    async function insert(x, y, pre) {
+      // 坐标点再地图之外，则不添加
+      if(x < 0 || x >= 100 || y < 0 || y >= 100) {
+        return 
+      }
+
+      // 0代表没走过，只添加没走过的点，0会被转化成false      1、2或者其他数字代表走过，则不添加
+      if(table[y * 100 + x]) {
+        return 
+      }
+
+      await sleep(5)
+      container.children[y * 100 + x].style.backgroundColor = 'lightgreen'
+      table[y * 100 + x] = pre // 将即将添加的点用上一个点标记一下，表示非路障走过的点
+      // queue.push([x, y])
+      queue.give([x, y])
+    }
+
+    function distance(point) {
+      return (point[0] - end[0]) ** 2 + (point[1] - end[1]) ** 2
+    }
+    /**
+    思路：每次从队列中取出第一个坐标，判断是否为终点，是，则方法返回true，否，则添加该点的上下左右四个坐标进队列，如此循环，直至队列空返回false
+    */
+    while(queue.length) {
+      let [x, y] = queue.take()
+
+      if(x === end[0] && y === end[1]) {
+        let path = []
+        while(x != start[0] || y != start[1]) {
+          path.push(map[y * 100 + x]);
+          [x, y] = table[y * 100 + x]
+
+          await sleep(5)
+          container.children[y * 100 + x].style.backgroundColor = 'purple'
+        }
+        return path
+      }
+
+      // 正向
+      await insert(x - 1, y, [x, y])
+      await insert(x, y - 1, [x, y])
+      await insert(x + 1, y, [x, y])
+      await insert(x, y + 1, [x, y])
+      
+      // 斜向
+      await insert(x - 1, y - 1, [x, y])
+      await insert(x + 1, y - 1, [x, y])
+      await insert(x - 1, y + 1, [x, y])
+      await insert(x + 1, y + 1, [x, y])
+    }
+
+    return null
+
+  }
+</script>
+
+</html>

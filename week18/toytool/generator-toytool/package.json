@@ -1,0 +1,16 @@
+{
+  "name": "generator-toytool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "generators/app/index.js",
+  "scripts": {
+    "test": "mocha --require @babel/register",
+    "build": "webpack",
+    "coverage": "nyc mocha --require @babel/register"
+  },
+  "author": "tianlongzhu",
+  "license": "ISC",
+  "dependencies": {
+    "yeoman-generator": "^4.12.0"
+  }
+}
